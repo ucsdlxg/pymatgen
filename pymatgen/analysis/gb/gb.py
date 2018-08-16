@@ -487,6 +487,10 @@ class GBGenerator(object):
                                     surface=plane, max_search=max_search)
 
         parent_structure = self.initial_structure.copy()
+        distance = parent_structure.lattice.get_all_distances(parent_structure.frac_coords,
+                                                              parent_structure.frac_coords)
+        bond_length = np.min(distance[np.nonzero(distance)])
+
         # top grain
         top_grain = fix_pbc(parent_structure * t1)
         oriended_unit_cell = top_grain.copy()
@@ -556,6 +560,21 @@ class GBGenerator(object):
         gb_with_vac = Structure(whole_lat, all_species, all_coords,
                                 coords_are_cartesian=True,
                                 site_properties={'grain_label': grain_labels})
+
+        # properly rearrange the atom at the boundary of bottom and top grains
+        all_coords = []
+        for i in range(gb_with_vac.num_sites):
+            if abs(gb_with_vac[i].frac_coords[2]) < 1.e-6 or \
+                            abs(gb_with_vac[i].frac_coords[2] - 0.5) < 1.e-6:
+                neighbors = gb_with_vac.get_neighbors(gb_with_vac[i], bond_length * 0.6,
+                                                      include_index=True)
+                if len(neighbors) > 0:
+                    coord = gb_with_vac[i].coords + gb_with_vac.lattice.matrix[2] / 2.0
+                    all_coords.append(coord)
+                else:
+                    all_coords.append(gb_with_vac[i].coords)
+            else:
+                all_coords.append(gb_with_vac[i].coords)
 
         return Gb(whole_lat, all_species, all_coords, rotation_axis, rotation_angle,
                   plane, self.initial_structure, vacuum_thickness, ab_shift,
