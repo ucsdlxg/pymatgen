@@ -487,8 +487,12 @@ class GBGenerator(object):
                                     surface=plane, max_search=max_search)
 
         parent_structure = self.initial_structure.copy()
-        distance = parent_structure.lattice.get_all_distances(parent_structure.frac_coords,
-                                                              parent_structure.frac_coords)
+        if len(parent_structure) == 1:
+            temp_str = parent_structure.copy()
+            temp_str.make_supercell([1,1,2])
+            distance = temp_str.distance_matrix
+        else:
+            distance = parent_structure.distance_matrix
         bond_length = np.min(distance[np.nonzero(distance)])
 
         # top grain
