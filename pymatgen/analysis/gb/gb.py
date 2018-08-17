@@ -138,15 +138,22 @@ class Gb(Structure):
                   self.site_properties, self.oriented_unit_cell)
 
     @property
-    def sigma(self):
+    def sigma_from_site_prop(self):
         """
-        This method returns the sigma value of the Gb.
+        This method returns the sigma value of the Gb from site properties.
         """
         num_coi = 0
         for tag in self.site_properties['grain_label']:
             if 'incident' in tag:
                 num_coi += 1
         return int(round(self.num_sites / num_coi))
+
+    @property
+    def sigma(self):
+        """
+        This method returns the sigma value of the Gb.
+        """
+        return int(round(self.oriented_unit_cell.volume / self.init_cell.volume))
 
     @property
     def top_grain(self):
@@ -357,8 +364,8 @@ class GBGenerator(object):
             tol_coi (float): tolerance to find the coincidence sites. When making approximations to
                 the ratio needed to generate the GB, you probably need to increase this tolerance to
                 obtain the correct number of coincidence sites. To check the number of coincidence
-                sites are correct or not, you can compare the generated Gb object's sigma with enum*
-                sigma values (what user expected by input).
+                sites are correct or not, you can compare the generated Gb object's sigma_from_site_prop
+                 with enum* sigma values (what user expected by input).
 
         Returns:
            Grain boundary structure (structure object).
@@ -497,7 +504,15 @@ class GBGenerator(object):
 
         # top grain
         top_grain = fix_pbc(parent_structure * t1)
-        oriended_unit_cell = top_grain.copy()
+
+        # get the smallest oriended cell
+        if normal:
+            t_temp = self.get_trans_mat(r_axis=rotation_axis, angle=rotation_angle, normal=False,
+                                        trans_cry=trans_cry, lat_type=lat_type, ratio=ratio,
+                                        surface=plane, max_search=max_search)
+            oriended_unit_cell = fix_pbc(parent_structure * t_temp[0])
+        else:
+            oriended_unit_cell = top_grain.copy()
 
         # bottom grain, using top grain's lattice matrix
         bottom_grain = fix_pbc(parent_structure * t2, top_grain.lattice.matrix)
@@ -570,8 +585,7 @@ class GBGenerator(object):
         for i in range(gb_with_vac.num_sites):
             if abs(gb_with_vac[i].frac_coords[2]) < 1.e-6 or \
                             abs(gb_with_vac[i].frac_coords[2] - 0.5) < 1.e-6:
-                neighbors = gb_with_vac.get_neighbors(gb_with_vac[i], bond_length * 0.6,
-                                                      include_index=True)
+                neighbors = gb_with_vac.get_neighbors(gb_with_vac[i], bond_length * 0.6)
                 if len(neighbors) > 0:
                     coord = gb_with_vac[i].coords + gb_with_vac.lattice.matrix[2] / 2.0
                     all_coords.append(coord)
@@ -580,9 +594,22 @@ class GBGenerator(object):
             else:
                 all_coords.append(gb_with_vac[i].coords)
 
-        return Gb(whole_lat, all_species, all_coords, rotation_axis, rotation_angle,
-                  plane, self.initial_structure, vacuum_thickness, ab_shift,
-                  site_properties={'grain_label': grain_labels},
+        gb_with_vac = Structure(whole_lat, all_species, all_coords,
+                                coords_are_cartesian=True,
+                                site_properties={'grain_label': grain_labels})
+
+        # remove overlap atoms in bottom grain.
+
+        removed_site = []
+        for i in range(int(round(gb_with_vac.num_sites / 2))):
+            neighbors = gb_with_vac.get_neighbors(gb_with_vac[i], bond_length * 0.6)
+            if len(neighbors) > 0:
+                removed_site.append(i)
+        gb_with_vac.remove_sites(removed_site)
+
+        return Gb(whole_lat, gb_with_vac.species, gb_with_vac.cart_coords, rotation_axis,
+                  rotation_angle, plane, self.initial_structure, vacuum_thickness, ab_shift,
+                  site_properties=gb_with_vac.site_properties,
                   oriented_unit_cell=oriended_unit_cell,
                   coords_are_cartesian=True)
 
