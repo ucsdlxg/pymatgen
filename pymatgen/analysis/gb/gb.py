@@ -547,6 +547,12 @@ class GBGenerator(object):
         bottom_grain.make_supercell([1, 1, expand_times])
         top_grain = fix_pbc(top_grain)
         bottom_grain = fix_pbc(bottom_grain)
+
+        # determine the top-grain location.
+        edge_b = 1.0 - max(bottom_grain.frac_coords[:,2])
+        edge_t = 1.0 - max(top_grain.frac_coords[:,2])
+        c_adjust = (edge_t - edge_b)/2.0
+
         # construct all species
         all_species = []
         all_species.extend([site.specie for site in bottom_grain])
@@ -572,7 +578,7 @@ class GBGenerator(object):
         for site in bottom_grain:
             all_coords.append(site.coords)
         for site in top_grain:
-            all_coords.append(site.coords + half_lattice.matrix[2] + translation_v
+            all_coords.append(site.coords + half_lattice.matrix[2]*(1 + c_adjust) + translation_v
                               + ab_shift[0] * whole_matrix_with_vac[0] +
                               ab_shift[1] * whole_matrix_with_vac[1])
 
@@ -580,29 +586,56 @@ class GBGenerator(object):
                                 coords_are_cartesian=True,
                                 site_properties={'grain_label': grain_labels})
 
-        # properly rearrange the atom at the boundary of bottom and top grains
-        all_coords = []
-        for i in range(gb_with_vac.num_sites):
-            if abs(gb_with_vac[i].frac_coords[2]) < 1.e-6 or \
-                            abs(gb_with_vac[i].frac_coords[2] - 0.5) < 1.e-6:
-                neighbors = gb_with_vac.get_neighbors(gb_with_vac[i], bond_length * 0.6)
-                if len(neighbors) > 0:
-                    coord = gb_with_vac[i].coords + gb_with_vac.lattice.matrix[2] / 2.0
-                    all_coords.append(coord)
-                else:
-                    all_coords.append(gb_with_vac[i].coords)
-            else:
-                all_coords.append(gb_with_vac[i].coords)
-
-        gb_with_vac = Structure(whole_lat, all_species, all_coords,
-                                coords_are_cartesian=True,
-                                site_properties={'grain_label': grain_labels})
+        # # properly rearrange the atom at the boundary of bottom and top grains
+        # bottom_moved = gb_with_vac.cart_coords
+        # top_moved = gb_with_vac.cart_coords
+        # moved_sites_top = []
+        # moved_sites_bot = []
+        # for i in range(gb_with_vac.num_sites):
+        #     if abs(gb_with_vac[i].frac_coords[2] -
+        #                    min(gb_with_vac.frac_coords[bottom_grain.num_sites:
+        #                    gb_with_vac.num_sites, 2]))< 1.e-4:
+        #         neighbor_init = gb_with_vac.get_neighbors(gb_with_vac[i], bond_length * 0.9,
+        #                                                   include_index=True)
+        #         if len(neighbor_init) > 0:
+        #             neighbor_init = sorted(neighbor_init, key=lambda n: n[1])
+        #             coord = gb_with_vac[i].coords + half_lattice.matrix[2]
+        #             top_moved[i] = coord
+        #             bot_index = neighbor_init[0][-1]
+        #             coord = gb_with_vac[bot_index].coords - half_lattice.matrix[2]
+        #             bottom_moved[bot_index] = coord
+        #             moved_sites_top.append(i)
+        #             moved_sites_bot.append(bot_index)
+        # print('movedsite',moved_sites_top, moved_sites_bot)
+        # gb_move_top = Structure(whole_lat, all_species, top_moved,
+        #                         coords_are_cartesian=True,
+        #                         site_properties={'grain_label': grain_labels})
+        # gb_move_bot = Structure(whole_lat, all_species, bottom_moved,
+        #                         coords_are_cartesian=True,
+        #                         site_properties={'grain_label': grain_labels})
+        # gb_move_bot.to("cif", "/Users/ucsdlxg/temp/move_bot.cif")
+        # all_coords = gb_with_vac.cart_coords
+        # for i in range(len(moved_sites_top)):
+        #     top_index = moved_sites_top[i]
+        #     bot_index = moved_sites_bot[i]
+        #     neighbor_init = gb_with_vac.get_neighbors(gb_with_vac[top_index], bond_length)
+        #     neighbor_init = sorted(neighbor_init, key=lambda n: n[1])
+        #     neighbor_moved_top = gb_move_top.get_neighbors(gb_move_top[top_index], bond_length)
+        #     neighbor_moved_top = sorted(neighbor_moved_top, key=lambda n: n[1])
+        #     neighbor_moved_bot = gb_move_bot.get_neighbors(gb_move_bot[bot_index], bond_length)
+        #     neighbor_moved_bot = sorted(neighbor_moved_bot, key=lambda n: n[1])
+        #     max_index = np.argmax([neighbor_init[0][1], neighbor_moved_top[0][1], neighbor_moved_bot[0][1]])
+        #     print('top.bot',top_index,bot_index,neighbor_init[0][1], neighbor_moved_top[0][1],
+        #           neighbor_moved_bot[0][1])
+        #     if max_index == 1:
+        #         all_coords[top_index] = gb_move_top[top_index].coords
+        #     elif max_index == 2:
+        #         all_coords[bot_index] = gb_move_bot[bot_index].coords
 
         # remove overlap atoms in bottom grain.
-
         removed_site = []
         for i in range(int(round(gb_with_vac.num_sites / 2))):
-            neighbors = gb_with_vac.get_neighbors(gb_with_vac[i], bond_length * 0.6)
+            neighbors = gb_with_vac.get_neighbors(gb_with_vac[i], bond_length * 0.7)
             if len(neighbors) > 0:
                 removed_site.append(i)
         gb_with_vac.remove_sites(removed_site)
