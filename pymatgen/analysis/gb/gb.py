@@ -1092,6 +1092,7 @@ class GBGenerator(object):
         if reduce(gcd, r_axis) != 1:
             r_axis = [int(round(x / reduce(gcd, r_axis))) for x in r_axis]
         r_matrix = np.matrix(trans_cry).T.I * r_matrix * np.matrix(trans_cry).T
+
         # set one vector of the basis to the rotation axis direction, and
         # obtain the corresponding transform matrix
         I_mat = np.matrix(np.identity(3))
@@ -1124,7 +1125,7 @@ class GBGenerator(object):
         # each row of mat_csl is the CSL lattice vector
         csl_init = np.rint(r_matrix * trans * np.matrix(scale)).astype(int).T
         if abs(r_axis[h]) > 1:
-            csl_init = GBGenerator.reduce_mat(np.array(csl_init), r_axis[h])
+            csl_init = GBGenerator.reduce_mat(np.array(csl_init), r_axis[h], r_matrix)
         csl = np.rint(Lattice(csl_init).get_niggli_reduced_lattice().matrix).astype(int)
 
         # find the best slab supercell in terms of the conventional cell from the csl lattice,
@@ -1902,7 +1903,6 @@ class GBGenerator(object):
             else:
                 c_index = i
                 miller_nonzero.append(j)
-
         if len(miller_nonzero) > 1:
             index_len = len(miller_nonzero)
             lcm_miller = []
@@ -2029,14 +2029,16 @@ class GBGenerator(object):
         return t_matrix
 
     @staticmethod
-    def reduce_mat(mat, mag):
+    def reduce_mat(mat, mag, r_matrix):
         """
         Reduce integer array mat's determinant mag times by linear combination
-        of its row vectors
+        of its row vectors, so that the new array after rotation (r_matrix) is
+        still an integer array
 
         Args:
             mat (3 by 3 array): input matrix
             mag (integer): reduce times for the determinant
+            r_matrix (3 by 3 array): rotation matrix
         Return:
             the reduced integer array
         """
@@ -2049,9 +2051,13 @@ class GBGenerator(object):
                 for j2 in range(-max_j, max_j + 1):
                     temp = mat[h] + j1 * mat[k] + j2 * mat[l]
                     if all([np.round(x, 5).is_integer() for x in list(temp / mag)]):
-                        mat[h] = np.array([int(round(ele / mag)) for ele in temp])
-                        reduced = True
-                        break
+                        mat_copy = mat.copy()
+                        mat_copy[h] = np.array([int(round(ele / mag)) for ele in temp])
+                        new_mat = np.matrix(mat_copy)*np.matrix(r_matrix).T.I
+                        if all([np.round(x, 5).is_integer() for x in list(np.ravel(new_mat))]):
+                            reduced = True
+                            mat[h] = np.array([int(round(ele / mag)) for ele in temp])
+                            break
                 if reduced:
                     break
             if reduced:
