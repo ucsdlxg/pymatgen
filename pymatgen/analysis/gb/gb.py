@@ -313,7 +313,7 @@ class GBGenerator(object):
 
     def gb_from_parameters(self, rotation_axis, rotation_angle, expand_times=4, vacuum_thickness=0.0,
                            ab_shift=[0, 0], normal=False, ratio=None, plane=None, max_search=50,
-                           tol_coi=1.e-3):
+                           tol_coi=1.e-8, rm_ratio=0.7):
 
         """
         Args:
@@ -366,6 +366,9 @@ class GBGenerator(object):
                 obtain the correct number of coincidence sites. To check the number of coincidence
                 sites are correct or not, you can compare the generated Gb object's sigma_from_site_prop
                  with enum* sigma values (what user expected by input).
+            rm_ratio (float): the creteria to remove the atoms which are too close with each other.
+                rm_ratio*bond_length of bulk system is the creteria of bond length, below which the atom
+                will be removed. Default to 0.7.
 
         Returns:
            Grain boundary structure (structure object).
@@ -496,7 +499,7 @@ class GBGenerator(object):
         parent_structure = self.initial_structure.copy()
         if len(parent_structure) == 1:
             temp_str = parent_structure.copy()
-            temp_str.make_supercell([1,1,2])
+            temp_str.make_supercell([1, 1, 2])
             distance = temp_str.distance_matrix
         else:
             distance = parent_structure.distance_matrix
@@ -549,9 +552,9 @@ class GBGenerator(object):
         bottom_grain = fix_pbc(bottom_grain)
 
         # determine the top-grain location.
-        edge_b = 1.0 - max(bottom_grain.frac_coords[:,2])
-        edge_t = 1.0 - max(top_grain.frac_coords[:,2])
-        c_adjust = (edge_t - edge_b)/2.0
+        edge_b = 1.0 - max(bottom_grain.frac_coords[:, 2])
+        edge_t = 1.0 - max(top_grain.frac_coords[:, 2])
+        c_adjust = (edge_t - edge_b) / 2.0
 
         # construct all species
         all_species = []
@@ -578,7 +581,7 @@ class GBGenerator(object):
         for site in bottom_grain:
             all_coords.append(site.coords)
         for site in top_grain:
-            all_coords.append(site.coords + half_lattice.matrix[2]*(1 + c_adjust) + translation_v
+            all_coords.append(site.coords + half_lattice.matrix[2] * (1 + c_adjust) + translation_v
                               + ab_shift[0] * whole_matrix_with_vac[0] +
                               ab_shift[1] * whole_matrix_with_vac[1])
 
@@ -586,56 +589,10 @@ class GBGenerator(object):
                                 coords_are_cartesian=True,
                                 site_properties={'grain_label': grain_labels})
 
-        # # properly rearrange the atom at the boundary of bottom and top grains
-        # bottom_moved = gb_with_vac.cart_coords
-        # top_moved = gb_with_vac.cart_coords
-        # moved_sites_top = []
-        # moved_sites_bot = []
-        # for i in range(gb_with_vac.num_sites):
-        #     if abs(gb_with_vac[i].frac_coords[2] -
-        #                    min(gb_with_vac.frac_coords[bottom_grain.num_sites:
-        #                    gb_with_vac.num_sites, 2]))< 1.e-4:
-        #         neighbor_init = gb_with_vac.get_neighbors(gb_with_vac[i], bond_length * 0.9,
-        #                                                   include_index=True)
-        #         if len(neighbor_init) > 0:
-        #             neighbor_init = sorted(neighbor_init, key=lambda n: n[1])
-        #             coord = gb_with_vac[i].coords + half_lattice.matrix[2]
-        #             top_moved[i] = coord
-        #             bot_index = neighbor_init[0][-1]
-        #             coord = gb_with_vac[bot_index].coords - half_lattice.matrix[2]
-        #             bottom_moved[bot_index] = coord
-        #             moved_sites_top.append(i)
-        #             moved_sites_bot.append(bot_index)
-        # print('movedsite',moved_sites_top, moved_sites_bot)
-        # gb_move_top = Structure(whole_lat, all_species, top_moved,
-        #                         coords_are_cartesian=True,
-        #                         site_properties={'grain_label': grain_labels})
-        # gb_move_bot = Structure(whole_lat, all_species, bottom_moved,
-        #                         coords_are_cartesian=True,
-        #                         site_properties={'grain_label': grain_labels})
-        # gb_move_bot.to("cif", "/Users/ucsdlxg/temp/move_bot.cif")
-        # all_coords = gb_with_vac.cart_coords
-        # for i in range(len(moved_sites_top)):
-        #     top_index = moved_sites_top[i]
-        #     bot_index = moved_sites_bot[i]
-        #     neighbor_init = gb_with_vac.get_neighbors(gb_with_vac[top_index], bond_length)
-        #     neighbor_init = sorted(neighbor_init, key=lambda n: n[1])
-        #     neighbor_moved_top = gb_move_top.get_neighbors(gb_move_top[top_index], bond_length)
-        #     neighbor_moved_top = sorted(neighbor_moved_top, key=lambda n: n[1])
-        #     neighbor_moved_bot = gb_move_bot.get_neighbors(gb_move_bot[bot_index], bond_length)
-        #     neighbor_moved_bot = sorted(neighbor_moved_bot, key=lambda n: n[1])
-        #     max_index = np.argmax([neighbor_init[0][1], neighbor_moved_top[0][1], neighbor_moved_bot[0][1]])
-        #     print('top.bot',top_index,bot_index,neighbor_init[0][1], neighbor_moved_top[0][1],
-        #           neighbor_moved_bot[0][1])
-        #     if max_index == 1:
-        #         all_coords[top_index] = gb_move_top[top_index].coords
-        #     elif max_index == 2:
-        #         all_coords[bot_index] = gb_move_bot[bot_index].coords
-
         # remove overlap atoms in bottom grain.
         removed_site = []
         for i in range(int(round(gb_with_vac.num_sites / 2))):
-            neighbors = gb_with_vac.get_neighbors(gb_with_vac[i], bond_length * 0.7)
+            neighbors = gb_with_vac.get_neighbors(gb_with_vac[i], bond_length * rm_ratio)
             if len(neighbors) > 0:
                 removed_site.append(i)
         gb_with_vac.remove_sites(removed_site)
@@ -2053,7 +2010,7 @@ class GBGenerator(object):
                     if all([np.round(x, 5).is_integer() for x in list(temp / mag)]):
                         mat_copy = mat.copy()
                         mat_copy[h] = np.array([int(round(ele / mag)) for ele in temp])
-                        new_mat = np.matrix(mat_copy)*np.matrix(r_matrix).T.I
+                        new_mat = np.matrix(mat_copy) * np.matrix(r_matrix).T.I
                         if all([np.round(x, 5).is_integer() for x in list(np.ravel(new_mat))]):
                             reduced = True
                             mat[h] = np.array([int(round(ele / mag)) for ele in temp])
