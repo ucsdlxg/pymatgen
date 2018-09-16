@@ -728,7 +728,7 @@ class GrainBoundaryGenerator(object):
 
     @staticmethod
     def get_trans_mat(r_axis, angle, normal=False, trans_cry=np.eye(3), lat_type='c',
-                      ratio=None, surface=None, max_search=50):
+                      ratio=None, surface=None, max_search=50, enum = False):
         """
         Find the two transformation matrix for each grain from given rotation axis,
         GB plane, rotation angle and corresponding ratio (see explanation for ratio
@@ -779,6 +779,8 @@ class GrainBoundaryGenerator(object):
             max_search (int): max search for the GB lattice vectors that give the smallest GB
                 lattice. If normal is true, also max search the GB c vector that perpendicular
                 to the plane.
+            enum (bool): whether to enumerate the possible planes, if set to true, no need to
+                find the smallest cell.
 
         Returns:
             t1 (3 by 3 integer array):
@@ -1168,7 +1170,8 @@ class GrainBoundaryGenerator(object):
                                       [0, -1 * np.sqrt(3.0) / 3.0, 1.0 / 3 * np.sqrt(c2_a2_ratio)]])
             else:
                 trans_cry = np.array([[1, 0, 0], [0, np.sqrt(lam / mv), 0], [0, 0, np.sqrt(mu / mv)]])
-        t1_final = GrainBoundaryGenerator.slab_from_csl(csl, surface, normal, trans_cry, max_search=max_search)
+        t1_final = GrainBoundaryGenerator.slab_from_csl(csl, surface, normal, trans_cry, max_search=max_search,
+                                                        enum= enum)
         t2_final = np.array(np.rint(np.matrix(t1_final) * (r_matrix).T.I)).astype(int)
         return t1_final, t2_final
 
@@ -1881,7 +1884,7 @@ class GrainBoundaryGenerator(object):
         return rotation_angles
 
     @staticmethod
-    def slab_from_csl(csl, surface, normal, trans_cry, max_search=50):
+    def slab_from_csl(csl, surface, normal, trans_cry, max_search=50, enum = False):
         """
         By linear operation of csl lattice vectors to get the best corresponding
         slab lattice. That is the area of a,b vectors (within the surface plane)
@@ -1900,6 +1903,8 @@ class GrainBoundaryGenerator(object):
             max_search (int): max search for the GB lattice vectors that give the smallest GB
                 lattice. If normal is true, also max search the GB c vector that perpendicular
                 to the plane.
+            enum (bool): whether to enumerate the possible plane, no need to find the smallest
+                cell if set to true.
 
         Returns:
             t_matrix: a slab lattice ( 3 by 3 integer array):
@@ -1918,6 +1923,31 @@ class GrainBoundaryGenerator(object):
         if reduce(gcd, miller) != 1:
             miller = [int(round(x / reduce(gcd, miller))) for x in miller]
         miller_nonzero = []
+        # only used to enumerate the planes
+        if enum:
+            scale_factor = []
+            eye = np.eye(3, dtype=np.int)
+            for i, j in enumerate(miller):
+                if j == 0:
+                    scale_factor.append(eye[i])
+                else:
+                    miller_nonzero.append(i)
+            if len(scale_factor) < 2:
+                index_len = len(miller_nonzero)
+                for i in range(index_len):
+                    for j in range(i + 1, index_len):
+                        lcm_miller = lcm(miller[miller_nonzero[i]], miller[miller_nonzero[j]])
+                        l = [0, 0, 0]
+                        l[miller_nonzero[i]] = -int(round(lcm_miller / miller[miller_nonzero[i]]))
+                        l[miller_nonzero[j]] = int(round(lcm_miller / miller[miller_nonzero[j]]))
+                        scale_factor.append(l)
+                        if len(scale_factor) ==2:
+                            break
+            t_matrix[0] = np.array(scale_factor[0]* np.matrix(csl))
+            t_matrix[1] = np.array(scale_factor[1]*np.matrix(csl))
+            t_matrix[2] = csl[miller_nonzero[0]]
+            return t_matrix
+
         for i, j in enumerate(miller):
             if j == 0:
                 ab_vector.append(csl[i])
