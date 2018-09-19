@@ -1110,12 +1110,7 @@ class GrainBoundaryGenerator(object):
         r_axis = np.rint(np.matmul(r_axis, np.linalg.inv(trans_cry))).astype(int)
         if reduce(gcd, r_axis) != 1:
             r_axis = [int(round(x / reduce(gcd, r_axis))) for x in r_axis]
-<<<<<<< HEAD:pymatgen/analysis/gb/GrainBoundary.py
-        r_matrix = np.matrix(trans_cry).T.I * r_matrix * np.matrix(trans_cry).T
-
-=======
         r_matrix = np.dot(np.dot(np.linalg.inv(trans_cry.T), r_matrix), trans_cry.T)
->>>>>>> f8463f256df20ab2777cd2df65906305d834a11d:pymatgen/analysis/gb/gb.py
         # set one vector of the basis to the rotation axis direction, and
         # obtain the corresponding transform matrix
         I_mat = np.eye(3)
@@ -1170,14 +1165,8 @@ class GrainBoundaryGenerator(object):
                                       [0, -1 * np.sqrt(3.0) / 3.0, 1.0 / 3 * np.sqrt(c2_a2_ratio)]])
             else:
                 trans_cry = np.array([[1, 0, 0], [0, np.sqrt(lam / mv), 0], [0, 0, np.sqrt(mu / mv)]])
-<<<<<<< HEAD:pymatgen/analysis/gb/GrainBoundary.py
-        t1_final = GrainBoundaryGenerator.slab_from_csl(csl, surface, normal, trans_cry, max_search=max_search,
-                                                        enum= enum)
-        t2_final = np.array(np.rint(np.matrix(t1_final) * (r_matrix).T.I)).astype(int)
-=======
-        t1_final = GBGenerator.slab_from_csl(csl, surface, normal, trans_cry, max_search=max_search)
+        t1_final = GrainBoundaryGenerator.slab_from_csl(csl, surface, normal, trans_cry, max_search=max_search)
         t2_final = np.array(np.rint(np.dot(t1_final, np.linalg.inv(r_matrix.T)))).astype(int)
->>>>>>> f8463f256df20ab2777cd2df65906305d834a11d:pymatgen/analysis/gb/gb.py
         return t1_final, t2_final
 
     @staticmethod
@@ -1839,13 +1828,8 @@ class GrainBoundaryGenerator(object):
             to the correct possible sigma value right smaller than the wrong sigma value provided.
         """
         if lat_type.lower() == 'c':
-<<<<<<< HEAD:pymatgen/analysis/gb/GrainBoundary.py
-            print('Make sure this is for cubic system')
-            sigma_dict = GrainBoundaryGenerator.enum_sigma_cubic(cutoff=sigma, r_axis=r_axis)
-=======
             # print('Make sure this is for cubic system')
-            sigma_dict = GBGenerator.enum_sigma_cubic(cutoff=sigma, r_axis=r_axis)
->>>>>>> f8463f256df20ab2777cd2df65906305d834a11d:pymatgen/analysis/gb/gb.py
+            sigma_dict = GrainBoundaryGenerator.enum_sigma_cubic(cutoff=sigma, r_axis=r_axis)
         elif lat_type.lower() == 't':
             # print('Make sure this is for tetragonal system')
             if ratio is None:
