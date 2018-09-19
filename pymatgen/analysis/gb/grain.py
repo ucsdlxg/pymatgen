@@ -636,8 +636,7 @@ class GrainBoundaryGenerator(object):
                                 coords_are_cartesian=True,
                                 site_properties={'grain_label': grain_labels})
         # merge closer atoms. extract near gb atoms.
-        print('heremerge')
-        cos_c_norm_plane = np.dot(normal_v_plane, whole_matrix_with_vac[2])/whole_lat.c
+        cos_c_norm_plane = np.dot(unit_normal_v, whole_matrix_with_vac[2])/whole_lat.c
         range_c_len = abs(bond_length/cos_c_norm_plane/whole_lat.c)
         sites_near_gb  = []
         sites_away_gb = []
@@ -651,7 +650,6 @@ class GrainBoundaryGenerator(object):
             s_near_gb = Structure.from_sites(sites_near_gb)
             s_near_gb.merge_sites(tol=bond_length * rm_ratio, mode='d')
             all_sites = sites_away_gb + s_near_gb.sites
-            print('heremerge1')
             gb_with_vac = Structure.from_sites(all_sites)
 
         return GrainBoundary(whole_lat, gb_with_vac.species, gb_with_vac.cart_coords, rotation_axis,
