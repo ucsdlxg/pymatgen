@@ -131,23 +131,23 @@ class Test_GrainBoundaryGenerator(PymatgenTest):
         c_len1 = np.dot(lat_mat1[2], c_vec1)
         vol_ratio = gb_cu_123_prim1.volume / self.Cu_prim.volume
         self.assertAlmostEqual(vol_ratio, 9 * 2 * 2, 8)
-        # test expand_times
+        # test expand_times and vacuum layer
         gb_cu_123_prim2 = self.GB_Cu_prim.gb_from_parameters([1, 2, 3],
                                                              123.74898859588858,
-                                                             expand_times=4)
+                                                             expand_times=4, vacuum_thickness=1.5)
         lat_mat2 = gb_cu_123_prim2.lattice.matrix
         c_vec2 = np.cross(lat_mat2[0], lat_mat2[1]) / np.linalg.norm(np.cross(lat_mat2[0], lat_mat2[1]))
         c_len2 = np.dot(lat_mat2[2], c_vec2)
-        self.assertAlmostEqual(c_len2 / c_len1, 2)
-        # test vacuum layer
+        self.assertAlmostEqual((c_len2 -1.5 * 2) / c_len1, 2)
+
+        # test normal
         gb_cu_123_prim3 = self.GB_Cu_prim.gb_from_parameters([1, 2, 3],
                                                              123.74898859588858,
-                                                             expand_times=4,
-                                                             vacuum_thickness=1.5)
+                                                             expand_times=2, normal=True)
         lat_mat3 = gb_cu_123_prim3.lattice.matrix
         c_vec3 = np.cross(lat_mat3[0], lat_mat3[1]) / np.linalg.norm(np.cross(lat_mat3[0], lat_mat3[1]))
-        c_len3 = np.dot(lat_mat3[2], c_vec3)
-        self.assertAlmostEqual(c_len3 - c_len2, 1.5 * 2)
+        ab_len3 = np.linalg.norm(np.cross(lat_mat3[2], c_vec3))
+        self.assertAlmostEqual(ab_len3, 0)
 
         # from fcc conventional cell,axis [1,2,3], siamg 9
         gb_cu_123_conv1 = self.GB_Cu_conv.gb_from_parameters([1, 2, 3],
@@ -157,25 +157,15 @@ class Test_GrainBoundaryGenerator(PymatgenTest):
         lat_mat1 = gb_cu_123_conv1.lattice.matrix
         self.assertAlmostEqual(np.dot(lat_mat1[0], [1, 2, 3]), 0)
         self.assertAlmostEqual(np.dot(lat_mat1[1], [1, 2, 3]), 0)
-        # test normal
+        # test plane
         gb_cu_123_conv2 = self.GB_Cu_conv.gb_from_parameters([1, 2, 3],
                                                              123.74898859588858,
-                                                             expand_times=4,
+                                                             expand_times=2,
                                                              vacuum_thickness=1.5,
-                                                             normal=True)
+                                                             normal=False, plane=[1 ,3, 1])
         lat_mat2 = gb_cu_123_conv2.lattice.matrix
-        c_vec2 = np.cross(lat_mat2[0], lat_mat2[1]) / np.linalg.norm(np.cross(lat_mat2[0], lat_mat2[1]))
-        ab_len2 = np.linalg.norm(np.cross(lat_mat2[2], c_vec2))
-        self.assertAlmostEqual(ab_len2, 0)
-        # test plane
-        gb_cu_123_conv3 = self.GB_Cu_conv.gb_from_parameters([1, 2, 3],
-                                                             123.74898859588858,
-                                                             expand_times=4,
-                                                             vacuum_thickness=1.5,
-                                                             plane=[1, 3, 1])
-        lat_mat3 = gb_cu_123_conv3.lattice.matrix
-        self.assertAlmostEqual(np.dot(lat_mat3[0], [1, 3, 1]), 0)
-        self.assertAlmostEqual(np.dot(lat_mat3[1], [1, 3, 1]), 0)
+        self.assertAlmostEqual(np.dot(lat_mat2[0], [1, 3, 1]), 0)
+        self.assertAlmostEqual(np.dot(lat_mat2[1], [1, 3, 1]), 0)
 
         # from hex cell,axis [1,1,1], sigma 21
         gb_Be_111_1 = self.GB_Be.gb_from_parameters([1, 1, 1],
@@ -299,8 +289,8 @@ class Test_GrainBoundaryGenerator(PymatgenTest):
 
     def test_get_trans_mat(self):
         mat1, mat2 = GrainBoundaryGenerator.get_trans_mat([1, 1, 1], 95.55344419565849,
-                                                lat_type='o', ratio=[10, 20, 21],
-                                               surface=[21, 20, 10], normal=True)
+                                                          lat_type='o', ratio=[10, 20, 21],
+                                                          surface=[21, 20, 10], normal=True)
         self.assertAlmostEqual(np.dot(mat1[0], [21, 20, 10]), 0)
         self.assertAlmostEqual(np.dot(mat1[1], [21, 20, 10]), 0)
         self.assertAlmostEqual(np.linalg.det(mat1), np.linalg.det(mat2))
