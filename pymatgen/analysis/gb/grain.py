@@ -2004,7 +2004,7 @@ class GrainBoundaryGenerator(object):
             t_matrix[1] = np.array(scale_factor[1] * np.matrix(csl))
             t_matrix[2] = csl[miller_nonzero[0]]
             if abs(np.linalg.det(t_matrix)) > 1000:
-                warnings.warn('Number of atoms is too big. Suggest to use quick_gen=False')
+                warnings.warn('Too large matrix. Suggest to use quick_gen=False')
             return t_matrix
 
         for i, j in enumerate(miller):
@@ -2165,7 +2165,7 @@ class GrainBoundaryGenerator(object):
             t_matrix *= -1
 
         if normal and abs(np.linalg.det(t_matrix)) > 1000:
-            warnings.warn('Too many atoms. Suggest to use Normal=False')
+            warnings.warn('Too large matrix. Suggest to use Normal=False')
         return t_matrix
 
     @staticmethod

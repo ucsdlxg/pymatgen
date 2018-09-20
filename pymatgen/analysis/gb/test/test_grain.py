@@ -287,6 +287,12 @@ class Test_GrainBoundaryGenerator(PymatgenTest):
 
         self.assertListEqual(sorted(true_100), sorted(sigma_100))
 
+    def test_enum_possible_plane_cubic(self):
+        all_plane = GrainBoundaryGenerator.enum_possible_plane_cubic(4, [1, 1, 1], 60)
+        self.assertEqual(len(all_plane['Twist']), 1)
+        self.assertEqual(len(all_plane['Symmetric tilt']), 6)
+        self.assertEqual(len(all_plane['Normal tilt']), 12)
+
     def test_get_trans_mat(self):
         mat1, mat2 = GrainBoundaryGenerator.get_trans_mat([1, 1, 1], 95.55344419565849,
                                                           lat_type='o', ratio=[10, 20, 21],
