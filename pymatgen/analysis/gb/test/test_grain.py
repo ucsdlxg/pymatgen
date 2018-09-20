@@ -138,7 +138,7 @@ class Test_GrainBoundaryGenerator(PymatgenTest):
         lat_mat2 = gb_cu_123_prim2.lattice.matrix
         c_vec2 = np.cross(lat_mat2[0], lat_mat2[1]) / np.linalg.norm(np.cross(lat_mat2[0], lat_mat2[1]))
         c_len2 = np.dot(lat_mat2[2], c_vec2)
-        self.assertAlmostEqual((c_len2 -1.5 * 2) / c_len1, 2)
+        self.assertAlmostEqual((c_len2 - 1.5 * 2) / c_len1, 2)
 
         # test normal
         gb_cu_123_prim3 = self.GB_Cu_prim.gb_from_parameters([1, 2, 3],
@@ -162,7 +162,7 @@ class Test_GrainBoundaryGenerator(PymatgenTest):
                                                              123.74898859588858,
                                                              expand_times=2,
                                                              vacuum_thickness=1.5,
-                                                             normal=False, plane=[1 ,3, 1])
+                                                             normal=False, plane=[1, 3, 1])
         lat_mat2 = gb_cu_123_conv2.lattice.matrix
         self.assertAlmostEqual(np.dot(lat_mat2[0], [1, 3, 1]), 0)
         self.assertAlmostEqual(np.dot(lat_mat2[1], [1, 3, 1]), 0)

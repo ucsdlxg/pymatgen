@@ -326,7 +326,7 @@ class GrainBoundaryGenerator(object):
 
     def gb_from_parameters(self, rotation_axis, rotation_angle, expand_times=4, vacuum_thickness=0.0,
                            ab_shift=[0, 0], normal=False, ratio=None, plane=None, max_search=20,
-                           tol_coi=1.e-8, rm_ratio=0.7, quick_gen =False):
+                           tol_coi=1.e-8, rm_ratio=0.7, quick_gen=False):
 
         """
         Args:
@@ -567,7 +567,7 @@ class GrainBoundaryGenerator(object):
             t_matrix = oriended_unit_cell.lattice.matrix
             normal_v_plane = np.cross(t_matrix[0], t_matrix[1])
             unit_normal_v = normal_v_plane / np.linalg.norm(normal_v_plane)
-            unit_ab_adjust = (t_matrix[2] - np.dot(unit_normal_v, t_matrix[2]) * unit_normal_v)\
+            unit_ab_adjust = (t_matrix[2] - np.dot(unit_normal_v, t_matrix[2]) * unit_normal_v) \
                              / np.dot(unit_normal_v, t_matrix[2])
         else:
             oriended_unit_cell = top_grain.copy()
@@ -638,7 +638,7 @@ class GrainBoundaryGenerator(object):
             all_coords.append(site.coords)
         for site in top_grain:
             all_coords.append(site.coords + half_lattice.matrix[2] * (1 + c_adjust) +
-             unit_ab_adjust * np.linalg.norm(half_lattice.matrix[2] * (1 + c_adjust)) +
+                              unit_ab_adjust * np.linalg.norm(half_lattice.matrix[2] * (1 + c_adjust)) +
                               translation_v + ab_shift[0] * whole_matrix_with_vac[0] +
                               ab_shift[1] * whole_matrix_with_vac[1])
 
