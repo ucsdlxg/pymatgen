@@ -146,6 +146,7 @@ class GrainBoundary(Structure):
     def sigma(self):
         """
         This method returns the sigma value of the gb.
+        If using 'quick_gen' to generate GB, this value is not valid.
         """
         return int(round(self.oriented_unit_cell.volume / self.init_cell.volume))
 
@@ -325,7 +326,7 @@ class GrainBoundaryGenerator(object):
 
     def gb_from_parameters(self, rotation_axis, rotation_angle, expand_times=4, vacuum_thickness=0.0,
                            ab_shift=[0, 0], normal=False, ratio=None, plane=None, max_search=20,
-                           tol_coi=1.e-8, rm_ratio=0.7):
+                           tol_coi=1.e-8, rm_ratio=0.7, quick_gen =False):
 
         """
         Args:
@@ -380,6 +381,8 @@ class GrainBoundaryGenerator(object):
             rm_ratio (float): the criteria to remove the atoms which are too close with each other.
                 rm_ratio*bond_length of bulk system is the criteria of bond length, below which the atom
                 will be removed. Default to 0.7.
+            quick_gen (bool): whether to quickly generate a supercell, if set to true, no need to
+                find the smallest cell.
 
         Returns:
            Grain boundary structure (gb object).
@@ -503,7 +506,7 @@ class GrainBoundaryGenerator(object):
 
         t1, t2 = self.get_trans_mat(r_axis=rotation_axis, angle=rotation_angle, normal=normal,
                                     trans_cry=trans_cry, lat_type=lat_type, ratio=ratio,
-                                    surface=plane, max_search=max_search)
+                                    surface=plane, max_search=max_search, quick_gen=quick_gen)
 
         # find the join_plane
         if lat_type.lower() != 'c':
@@ -556,13 +559,19 @@ class GrainBoundaryGenerator(object):
         top_grain = fix_pbc(parent_structure * t1)
 
         # obtain the smallest oriended cell
-        if normal:
+        if normal and not quick_gen:
             t_temp = self.get_trans_mat(r_axis=rotation_axis, angle=rotation_angle, normal=False,
                                         trans_cry=trans_cry, lat_type=lat_type, ratio=ratio,
                                         surface=plane, max_search=max_search)
             oriended_unit_cell = fix_pbc(parent_structure * t_temp[0])
+            t_matrix = oriended_unit_cell.lattice.matrix
+            normal_v_plane = np.cross(t_matrix[0], t_matrix[1])
+            unit_normal_v = normal_v_plane / np.linalg.norm(normal_v_plane)
+            unit_ab_adjust = (t_matrix[2] - np.dot(unit_normal_v, t_matrix[2]) * unit_normal_v)\
+                             / np.dot(unit_normal_v, t_matrix[2])
         else:
             oriended_unit_cell = top_grain.copy()
+            unit_ab_adjust = 0.0
 
         # bottom grain, using top grain's lattice matrix
         bottom_grain = fix_pbc(parent_structure * t2, top_grain.lattice.matrix)
@@ -629,6 +638,7 @@ class GrainBoundaryGenerator(object):
             all_coords.append(site.coords)
         for site in top_grain:
             all_coords.append(site.coords + half_lattice.matrix[2] * (1 + c_adjust) +
+             unit_ab_adjust * np.linalg.norm(half_lattice.matrix[2] * (1 + c_adjust)) +
                               translation_v + ab_shift[0] * whole_matrix_with_vac[0] +
                               ab_shift[1] * whole_matrix_with_vac[1])
 
@@ -636,17 +646,17 @@ class GrainBoundaryGenerator(object):
                                 coords_are_cartesian=True,
                                 site_properties={'grain_label': grain_labels})
         # merge closer atoms. extract near gb atoms.
-        cos_c_norm_plane = np.dot(unit_normal_v, whole_matrix_with_vac[2])/whole_lat.c
-        range_c_len = abs(bond_length/cos_c_norm_plane/whole_lat.c)
-        sites_near_gb  = []
+        cos_c_norm_plane = np.dot(unit_normal_v, whole_matrix_with_vac[2]) / whole_lat.c
+        range_c_len = abs(bond_length / cos_c_norm_plane / whole_lat.c)
+        sites_near_gb = []
         sites_away_gb = []
         for site in gb_with_vac.sites:
-            if site.frac_coords[2] < range_c_len or site.frac_coords[2] > 1 - range_c_len\
-                or (site.frac_coords[2] > 0.5 - range_c_len and site.frac_coords[2] < 0.5 + range_c_len):
+            if site.frac_coords[2] < range_c_len or site.frac_coords[2] > 1 - range_c_len \
+                    or (site.frac_coords[2] > 0.5 - range_c_len and site.frac_coords[2] < 0.5 + range_c_len):
                 sites_near_gb.append(site)
             else:
                 sites_away_gb.append(site)
-        if len(sites_near_gb) >=1:
+        if len(sites_near_gb) >= 1:
             s_near_gb = Structure.from_sites(sites_near_gb)
             s_near_gb.merge_sites(tol=bond_length * rm_ratio, mode='d')
             all_sites = sites_away_gb + s_near_gb.sites
@@ -1993,6 +2003,8 @@ class GrainBoundaryGenerator(object):
             t_matrix[0] = np.array(scale_factor[0] * np.matrix(csl))
             t_matrix[1] = np.array(scale_factor[1] * np.matrix(csl))
             t_matrix[2] = csl[miller_nonzero[0]]
+            if abs(np.linalg.det(t_matrix)) > 1000:
+                warnings.warn('Number of atoms is too big. Suggest to use quick_gen=False')
             return t_matrix
 
         for i, j in enumerate(miller):
@@ -2152,6 +2164,8 @@ class GrainBoundaryGenerator(object):
         if np.linalg.det(np.matmul(t_matrix, trans)) < 0:
             t_matrix *= -1
 
+        if normal and abs(np.linalg.det(t_matrix)) > 1000:
+            warnings.warn('Too many atoms. Suggest to use Normal=False')
         return t_matrix
 
     @staticmethod
